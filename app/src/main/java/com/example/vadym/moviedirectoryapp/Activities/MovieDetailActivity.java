@@ -106,7 +106,7 @@ public class MovieDetailActivity extends AppCompatActivity {
         });
     }
 
-    private void getMovieDetails(String id){
+    private void getDetailsWithVolley(String id){
 
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, Constants.URL + id + Constants.API_KEY, null,
                 new Response.Listener<JSONObject>() {

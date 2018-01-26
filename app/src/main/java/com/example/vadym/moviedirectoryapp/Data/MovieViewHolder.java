@@ -52,3 +52,4 @@ public class MovieViewHolder extends RecyclerView.ViewHolder implements View.OnC
 
     }
 }
+

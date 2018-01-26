@@ -1,21 +1,20 @@
 package com.example.vadym.moviedirectoryapp.Activities;
 
-import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -28,7 +27,6 @@ import com.example.vadym.moviedirectoryapp.Constant.Prefs;
 import com.example.vadym.moviedirectoryapp.Data.MovieRecyclerViewAdapter;
 import com.example.vadym.moviedirectoryapp.Model.Movie;
 import com.example.vadym.moviedirectoryapp.Model.MovieApi;
-import com.example.vadym.moviedirectoryapp.Model.MovieInfo;
 import com.example.vadym.moviedirectoryapp.Model.MovieRetrofit;
 import com.example.vadym.moviedirectoryapp.R;
 
@@ -36,11 +34,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 
-import okhttp3.Headers;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Retrofit;
@@ -50,49 +45,161 @@ public class MainActivity extends AppCompatActivity {
 
     private RecyclerView recyclerView;
     private MovieRecyclerViewAdapter adapter;
-    private List<Movie> movieList;
     private RequestQueue queue;
 
     private AlertDialog.Builder builder;
     private AlertDialog dialog;
 
+    private int total;
+    private ProgressBar bar;
+    private boolean isLoading = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        final Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
         queue = Volley.newRequestQueue(this);
+        bar = (ProgressBar) findViewById(R.id.progressBar);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-            showInputDialog();
+                showInputDialog();
             }
         });
 
         recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
         recyclerView.setHasFixedSize(true);
-        LinearLayoutManager manager = new LinearLayoutManager(this);
+        final LinearLayoutManager manager = new LinearLayoutManager(this);
         manager.setOrientation(LinearLayoutManager.VERTICAL);
         recyclerView.setLayoutManager(manager);
 
-        Prefs prefs = new Prefs(MainActivity.this);
-        String search = prefs.getSearch();
 
-        movieList = new ArrayList<>();
 
-        //getMovieList(search);
-        getMovieRetrofit(search);
+        adapter = new MovieRecyclerViewAdapter(this);
 
-        adapter = new MovieRecyclerViewAdapter(this, movieList);
         recyclerView.setAdapter(adapter);
-        adapter.notifyDataSetChanged();
+        //getMovieListWithVolley(search);
+
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+
+                //якщо ми вже вантажимо нові елементи, то можна подальшу логіку ігнорувати
+                if (isLoading) return;
+
+
+
+
+                //перевіряємо на те, чи користувач вже прогортав до потрібної позиції
+                int lastVisibleItemPosition = manager.findLastVisibleItemPosition();
+                //ось тут ти мені потім відповісиш, чому я заюзав таку конструкцію
+                //оскільки в нас адптер завжди знає, скільки елементів в нас є - ми отримаємо ту позицію, з якої має відбутися завантаження
+
+
+
+                //тут трохи є хитрість, розкажу яка.
+                //в тебе при кожному русі викликається цей метод, ти раз скрольнув і він може викликатися 99 разів.
+                //візьмем до уваги ту інфу, що нам тре зробити типу безперервний скролі, тому ми будемо довантажувати
+                //нові елементи, коли количтувач прогортав вже 75% елементів
+                int allLoadedItemsCount = adapter.getItemCount();
+                int loadShouldStartPosition = (int)((double)allLoadedItemsCount * 0.75);
+
+                //тут ми маємо перевірити, чи в нас дійшло до потрібної позиції і чи ще є що підвантажувати
+                isLoading = loadShouldStartPosition>=lastVisibleItemPosition && allLoadedItemsCount<total;
+
+
+
+                //Ти неправильно зробив, суть в тому, що в тебе список елементів має всередині адаптера лежати.
+                //Далі, при завантаженні даних, ти маєш їх додавати в адаптер, щоб в тебе там відубвалося адекватне підрахування
+
+//                if(isLoading)
+//                    //loadMore(search);
+
+            }
+        });
+
+        //поламав ти андроїд
+
     }
 
-    public List<Movie> getMovieRetrofit(String searchTerm){
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        Prefs prefs = new Prefs(MainActivity.this);
+        final String search = prefs.getSearch();
+        getMovieRetrofit(search);
+
+    }
+
+    private void loadMore(final String search){
+
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                bar.setVisibility(View.VISIBLE);
+                loadNextPage(search);
+            }
+        },3000);
+    }
+
+
+    //а це не можна було в одну функцію засунути?
+    private List<Movie> loadNextPage(String search){ // она не вызывается нигде
+        final Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("http://www.omdbapi.com/")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        final MovieApi movieApi = retrofit.create(MovieApi.class);
+
+        Call<MovieRetrofit> movieRetrofitCall = movieApi.getMovie(search);
+        movieRetrofitCall.enqueue(new Callback<MovieRetrofit>() {
+            @Override
+            public void onResponse(Call<MovieRetrofit> call, retrofit2.Response<MovieRetrofit> response) {
+//                Log.d("TAG",response.code()+"");
+//                Log.d("TAG",String.valueOf(response.raw()));
+
+                MovieRetrofit movieRetrofit = response.body();
+                total = Integer.parseInt(movieRetrofit.getTotal());
+                List<Movie> movieInfoList = movieRetrofit.getSearchList();
+//                Log.d("TAG",String.valueOf(movieInfoList.size()));
+                for (int i=0; i<movieInfoList.size();i++){
+                    Movie info = movieInfoList.get(i);
+
+                    Movie movie = new Movie();
+                    movie.setTitle(info.getTitle());
+                    //от такі штуки тре в холдери робити
+                    movie.setYear("Year Released: " + info.getYear());
+                    movie.setMovieType("Type: " + info.getMovieType());
+                    movie.setPoster(info.getPoster());
+                    movie.setImdbId(info.getImdbId());
+                   // movieList.add(movie);
+                    adapter.addItem(movie);
+                    //чого в тебе в циклі це викликається?
+                    bar.setVisibility(View.GONE);
+                }
+                    //adapter.notifyItemInserted(movieList.size() -1);
+              //  adapter.notifyDataSetChanged();
+
+            }
+
+            @Override
+            public void onFailure(Call<MovieRetrofit> call, Throwable t) {
+
+            }
+        });
+        return null;
+    }
+
+
+    public void getMovieRetrofit(String searchTerm){
 
         final Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("http://www.omdbapi.com/")
@@ -105,24 +212,40 @@ public class MainActivity extends AppCompatActivity {
         search.enqueue(new Callback<MovieRetrofit>() {
             @Override
             public void onResponse(Call<MovieRetrofit> call, retrofit2.Response<MovieRetrofit> response) {
-//                Log.d("TAG",response.code()+"");
-//                Log.d("TAG",String.valueOf(response.raw()));
+                Log.d("TAG",response.code()+"");
+                Log.d("TAG",String.valueOf(response.raw()));
                 MovieRetrofit movieRetrofit = response.body();
+                total = Integer.parseInt(movieRetrofit.getTotal());
                 List<Movie> movieInfoList = movieRetrofit.getSearchList();
+                adapter.addAll(movieInfoList);
+               // adapter.addAll(movieInfoList);
 //                Log.d("TAG",String.valueOf(movieInfoList.size()));
-                for (int i=0; i<movieInfoList.size();i++){
-                    Movie info = movieInfoList.get(i);
-
-                    Movie movie = new Movie();
-                    movie.setTitle(info.getTitle());
-                    movie.setYear("Year Released: " + info.getYear());
-                    movie.setMovieType("Type: " + info.getMovieType());
-                    movie.setPoster(info.getPoster());
-                    movie.setImdbId(info.getImdbId());
-                    movieList.add(movie);
+//                for (int i=0; i<movieInfoList.size();i++){
+//                    Movie info = movieInfoList.get(i);
+////
+//                    Movie movie = new Movie();
+//                    movie.setTitle(info.getTitle());
+//                    movie.setYear("Year Released: " + info.getYear());
+//                    movie.setMovieType("Type: " + info.getMovieType());
+//                    movie.setPoster(info.getPoster());
+//                    movie.setImdbId(info.getImdbId());
+//                    adapter.addItem(movie);
+////                    //bar.setVisibility(View.GONE);
+//                }
+                /*for(int i=0;i<adapter.getItemCount();i++){
+                    Movie movie1 = adapter.movieList.get(i);
+                    String title = movie1.getTitle();
+                    Log.d("TAG", " title " + title);
                 }
+                */
 
                 adapter.notifyDataSetChanged();
+
+                Log.d("TAG", "Total " + total + " Size list " + adapter.getItemCount());
+
+                //таку штуку тре робити тільки тоді, коли в тебе всі дані міняються і ти не можеш вказати чи знати, які були зміни.
+                //наприклад, коли ти пеертасував рандомно список із фільмами, чи оновив сторінку повністю.
+                //adapter.notifyDataSetChanged();
             }
 
             @Override
@@ -130,12 +253,12 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
-        return null;
     }
 
-    //Get movies
-    public List<Movie> getMovieList(String searchTerm){
-        movieList.clear();
+    //Get movies with Volley
+    public void getMovieListWithVolley(String searchTerm){
+        //movieList.clear();
+        //adapter.clear();
 
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, Constants.URL_LEFT + searchTerm + Constants.API_KEY, null,
                 new Response.Listener<JSONObject>() {
@@ -155,10 +278,11 @@ public class MainActivity extends AppCompatActivity {
                                 movie.setImdbId(object.getString("imdbID"));
 
                                 //Log.d("Movies: ", movie.getTitle());
-                                movieList.add(movie);
+                                //movieList.add(movie);
+                                adapter.addItem(movie);
                             }
 
-                            adapter.notifyDataSetChanged();
+                            //adapter.notifyDataSetChanged();
 
                         } catch (JSONException e) {
                             e.printStackTrace();
@@ -173,7 +297,6 @@ public class MainActivity extends AppCompatActivity {
         });
 
         queue.add(jsonObjectRequest);
-        return movieList;
     }
 
     @Override
@@ -217,8 +340,9 @@ public class MainActivity extends AppCompatActivity {
                     String search = searchText.getText().toString();
                     prefs.setSearch(search);
 
-                    movieList.clear();
-                    getMovieList(search);
+                    adapter.clear();
+                    //movieList.clear();
+                    getMovieRetrofit(search);
                     //adapter.notifyDataSetChanged();
                 }
                 dialog.dismiss();
