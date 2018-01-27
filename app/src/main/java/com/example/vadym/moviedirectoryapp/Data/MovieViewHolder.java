@@ -27,7 +27,7 @@ public class MovieViewHolder extends RecyclerView.ViewHolder implements View.OnC
      Context context;
      Movie movie;
 
-    public MovieViewHolder(View itemView, Context ctx, final List<Movie> movieList) {
+    public MovieViewHolder(View itemView, Context ctx) {
         super(itemView);
 
         context = ctx;
