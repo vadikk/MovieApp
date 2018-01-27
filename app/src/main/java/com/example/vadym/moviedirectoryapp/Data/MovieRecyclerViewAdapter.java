@@ -19,7 +19,7 @@ import java.util.List;
  * Created by Vadym on 17.01.2018.
  */
 
-public class MovieRecyclerViewAdapter extends RecyclerView.Adapter<MovieViewHolder> implements View.OnClickListener {
+public class MovieRecyclerViewAdapter extends RecyclerView.Adapter<MovieViewHolder> {
 
     private Context context;
     @NonNull
@@ -79,8 +79,4 @@ public class MovieRecyclerViewAdapter extends RecyclerView.Adapter<MovieViewHold
         return movieList.size();
     }
 
-    @Override
-    public void onClick(View view) {
-
-    }
 }
