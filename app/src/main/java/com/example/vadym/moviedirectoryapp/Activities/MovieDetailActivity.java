@@ -1,5 +1,6 @@
 package com.example.vadym.moviedirectoryapp.Activities;
 
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -32,7 +33,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MovieDetailActivity extends AppCompatActivity {
 
-    private Movie movie;
+    @Nullable private Movie movie;
     private TextView movieTitle;
     private ImageView movieImage;
     private TextView movieYear;
@@ -57,6 +58,8 @@ public class MovieDetailActivity extends AppCompatActivity {
         queue = Volley.newRequestQueue(this);
 
         Bundle bundle = getIntent().getExtras();
+
+        // TODO: 1/27/18 зроби тут перевірки, бо тобі може прийти пустота, а не об'єкт, який ти очікуєш
 
         movie = (Movie) bundle.getSerializable("movie");
         movieId = movie.getImdbId();
@@ -106,6 +109,8 @@ public class MovieDetailActivity extends AppCompatActivity {
         });
     }
 
+
+    // TODO: 1/27/18 почисти за собою тут
     private void getDetailsWithVolley(String id){
 
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, Constants.URL + id + Constants.API_KEY, null,

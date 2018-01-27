@@ -1,5 +1,6 @@
 package com.example.vadym.moviedirectoryapp.Activities;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.design.widget.FloatingActionButton;
@@ -9,9 +10,9 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
@@ -41,7 +42,8 @@ import retrofit2.Callback;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity
+        implements OnMovieClickListener {
 
     private RecyclerView recyclerView;
     private MovieRecyclerViewAdapter adapter;
@@ -106,20 +108,20 @@ public class MainActivity extends AppCompatActivity {
                 //візьмем до уваги ту інфу, що нам тре зробити типу безперервний скролі, тому ми будемо довантажувати
                 //нові елементи, коли количтувач прогортав вже 75% елементів
                 int allLoadedItemsCount = adapter.getItemCount();
-                int loadShouldStartPosition = (int)((double)allLoadedItemsCount * 0.75);
+                int loadShouldStartPosition = (int) ((double) allLoadedItemsCount * 0.75);
 
                 //тут ми маємо перевірити, чи в нас дійшло до потрібної позиції і чи ще є що підвантажувати
-                isLoading = loadShouldStartPosition>=lastVisibleItemPosition && allLoadedItemsCount<total;
+                isLoading = loadShouldStartPosition >= lastVisibleItemPosition && allLoadedItemsCount < total;
                 Log.d("TAG", "last " + lastVisibleItemPosition + " allLoadedItem " + allLoadedItemsCount
                         + "loadshouldStart " + loadShouldStartPosition);
 
 
-                if(isLoading)
+                if (isLoading)
                     loadMore(search);
 
             }
         });
-        Log.d("TAG", "boolean"+ isLoading);
+        Log.d("TAG", "boolean" + isLoading);
     }
 
     @Override
@@ -127,18 +129,18 @@ public class MainActivity extends AppCompatActivity {
         super.onStart();
     }
 
-    private void loadMore(final String search){
+    private void loadMore(final String search) {
 
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-             //   bar.setVisibility(View.VISIBLE);
+                //   bar.setVisibility(View.VISIBLE);
                 //loadNextPage(search);
             }
-        },3000);
+        }, 3000);
     }
 
-    public void getMovieRetrofit(String searchTerm){
+    public void getMovieRetrofit(String searchTerm) {
 
         final Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("http://www.omdbapi.com/")
@@ -147,12 +149,12 @@ public class MainActivity extends AppCompatActivity {
 
         MovieApi movieApi = retrofit.create(MovieApi.class);
 
-        Call<MovieRetrofit> search = movieApi.getMovie( searchTerm );
+        Call<MovieRetrofit> search = movieApi.getMovie(searchTerm);
         search.enqueue(new Callback<MovieRetrofit>() {
             @Override
             public void onResponse(Call<MovieRetrofit> call, retrofit2.Response<MovieRetrofit> response) {
-                Log.d("TAG",response.code()+"");
-                Log.d("TAG",String.valueOf(response.raw()));
+                Log.d("TAG", response.code() + "");
+                Log.d("TAG", String.valueOf(response.raw()));
                 MovieRetrofit movieRetrofit = response.body();
                 total = Integer.parseInt(movieRetrofit.getTotal());
                 List<Movie> movieInfoList = movieRetrofit.getSearchList();
@@ -172,8 +174,16 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    public void onMovieClick(int position) {
+        Intent intent = new Intent(this, MovieDetailActivity.class);
+        intent.putExtra("movie", adapter.getMovie(position));
+        startActivity(intent);
+    }
+
     //Get movies with Volley
-    public void getMovieListWithVolley(String searchTerm){
+    //todo видали неюзані функції і об'єкти
+    public void getMovieListWithVolley(String searchTerm) {
         //movieList.clear();
         //adapter.clear();
 
@@ -184,7 +194,7 @@ public class MainActivity extends AppCompatActivity {
 
                         try {
                             JSONArray array = response.getJSONArray("Search");
-                            for(int i = 0; i<array.length();i++){
+                            for (int i = 0; i < array.length(); i++) {
                                 JSONObject object = array.getJSONObject(i);
 
                                 Movie movie = new Movie();
@@ -239,9 +249,12 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void showInputDialog(){
+    public void showInputDialog() {
+        // TODO: 1/27/18 винеси це все діло в окремий клас
+
+
         builder = new AlertDialog.Builder(this);
-        View view = getLayoutInflater().inflate(R.layout.dialog_view,null);
+        View view = getLayoutInflater().inflate(R.layout.dialog_view, null);
 
         final EditText searchText = (EditText) view.findViewById(R.id.searchEdt);
         Button submitBtn = (Button) view.findViewById(R.id.submitBtn);
@@ -253,7 +266,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 Prefs prefs = new Prefs(MainActivity.this);
-                if(!searchText.getText().equals("")) {
+                if (!searchText.getText().equals("")) {
                     String search = searchText.getText().toString();
                     prefs.setSearch(search);
 
