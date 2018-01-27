@@ -64,7 +64,7 @@ public class MovieDetailActivity extends AppCompatActivity {
 
 
         setUpUI();
-        //getMovieDetails(movieId);
+        //getDetailsWithVolley(movieId);
         getMovieDetailsRetrofit(movieId);
     }
 

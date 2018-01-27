@@ -19,7 +19,7 @@ import java.util.List;
  * Created by Vadym on 17.01.2018.
  */
 
-public class MovieRecyclerViewAdapter extends RecyclerView.Adapter<MovieViewHolder> {
+public class MovieRecyclerViewAdapter extends RecyclerView.Adapter<MovieViewHolder> implements View.OnClickListener {
 
     private Context context;
     @NonNull
@@ -27,7 +27,6 @@ public class MovieRecyclerViewAdapter extends RecyclerView.Adapter<MovieViewHold
 
     public MovieRecyclerViewAdapter(Context context) {
         this.context = context;
-        //movieList = movies;
     }
 
     public void addAll(List<Movie> movies){
@@ -58,7 +57,6 @@ public class MovieRecyclerViewAdapter extends RecyclerView.Adapter<MovieViewHold
     @Override
     public void onBindViewHolder(MovieViewHolder holder, int position) {
 
-        Log.d("TAG", "OK");
         Movie movie = movieList.get(position);
         String posterLink = movie.getPoster();
 
@@ -71,6 +69,8 @@ public class MovieRecyclerViewAdapter extends RecyclerView.Adapter<MovieViewHold
                 .placeholder(android.R.drawable.ic_btn_speak_now)
                 .into(holder.poster);
 
+        holder.setMovie(movie);
+
     }
 
 
@@ -79,4 +79,8 @@ public class MovieRecyclerViewAdapter extends RecyclerView.Adapter<MovieViewHold
         return movieList.size();
     }
 
+    @Override
+    public void onClick(View view) {
+
+    }
 }

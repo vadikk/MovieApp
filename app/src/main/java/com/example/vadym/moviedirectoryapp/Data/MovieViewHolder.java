@@ -18,13 +18,14 @@ import java.util.List;
  * Created by Vadym on 17.01.2018.
  */
 
-public class MovieViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+public class MovieViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
 
      TextView title;
      TextView year;
      TextView type;
      ImageView poster;
      Context context;
+     Movie movie;
 
     public MovieViewHolder(View itemView, Context ctx, final List<Movie> movieList) {
         super(itemView);
@@ -38,13 +39,15 @@ public class MovieViewHolder extends RecyclerView.ViewHolder implements View.OnC
         itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Movie movie = movieList.get(getAdapterPosition());
-
                 Intent intent = new Intent(context, MovieDetailActivity.class);
                 intent.putExtra("movie",movie);
                 context.startActivity(intent);
             }
         });
+    }
+
+    public void setMovie(Movie movie){
+        this.movie = movie;
     }
 
     @Override

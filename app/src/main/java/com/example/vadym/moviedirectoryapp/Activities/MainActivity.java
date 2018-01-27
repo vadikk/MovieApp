@@ -73,12 +73,14 @@ public class MainActivity extends AppCompatActivity {
         });
 
         recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
-        recyclerView.setHasFixedSize(true);
+        //recyclerView.setHasFixedSize(true);
         final LinearLayoutManager manager = new LinearLayoutManager(this);
         manager.setOrientation(LinearLayoutManager.VERTICAL);
         recyclerView.setLayoutManager(manager);
 
-
+        Prefs prefs = new Prefs(MainActivity.this);
+        final String search = prefs.getSearch();
+        getMovieRetrofit(search);
 
         adapter = new MovieRecyclerViewAdapter(this);
 
@@ -93,14 +95,10 @@ public class MainActivity extends AppCompatActivity {
                 //якщо ми вже вантажимо нові елементи, то можна подальшу логіку ігнорувати
                 if (isLoading) return;
 
-
-
-
                 //перевіряємо на те, чи користувач вже прогортав до потрібної позиції
                 int lastVisibleItemPosition = manager.findLastVisibleItemPosition();
                 //ось тут ти мені потім відповісиш, чому я заюзав таку конструкцію
                 //оскільки в нас адптер завжди знає, скільки елементів в нас є - ми отримаємо ту позицію, з якої має відбутися завантаження
-
 
 
                 //тут трохи є хитрість, розкажу яка.
@@ -112,30 +110,21 @@ public class MainActivity extends AppCompatActivity {
 
                 //тут ми маємо перевірити, чи в нас дійшло до потрібної позиції і чи ще є що підвантажувати
                 isLoading = loadShouldStartPosition>=lastVisibleItemPosition && allLoadedItemsCount<total;
+                Log.d("TAG", "last " + lastVisibleItemPosition + " allLoadedItem " + allLoadedItemsCount
+                        + "loadshouldStart " + loadShouldStartPosition);
 
 
-
-                //Ти неправильно зробив, суть в тому, що в тебе список елементів має всередині адаптера лежати.
-                //Далі, при завантаженні даних, ти маєш їх додавати в адаптер, щоб в тебе там відубвалося адекватне підрахування
-
-//                if(isLoading)
-//                    //loadMore(search);
+                if(isLoading)
+                    loadMore(search);
 
             }
         });
-
-        //поламав ти андроїд
-
+        Log.d("TAG", "boolean"+ isLoading);
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-
-        Prefs prefs = new Prefs(MainActivity.this);
-        final String search = prefs.getSearch();
-        getMovieRetrofit(search);
-
     }
 
     private void loadMore(final String search){
@@ -143,61 +132,11 @@ public class MainActivity extends AppCompatActivity {
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-                bar.setVisibility(View.VISIBLE);
-                loadNextPage(search);
+             //   bar.setVisibility(View.VISIBLE);
+                //loadNextPage(search);
             }
         },3000);
     }
-
-
-    //а це не можна було в одну функцію засунути?
-    private List<Movie> loadNextPage(String search){ // она не вызывается нигде
-        final Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl("http://www.omdbapi.com/")
-                .addConverterFactory(GsonConverterFactory.create())
-                .build();
-
-        final MovieApi movieApi = retrofit.create(MovieApi.class);
-
-        Call<MovieRetrofit> movieRetrofitCall = movieApi.getMovie(search);
-        movieRetrofitCall.enqueue(new Callback<MovieRetrofit>() {
-            @Override
-            public void onResponse(Call<MovieRetrofit> call, retrofit2.Response<MovieRetrofit> response) {
-//                Log.d("TAG",response.code()+"");
-//                Log.d("TAG",String.valueOf(response.raw()));
-
-                MovieRetrofit movieRetrofit = response.body();
-                total = Integer.parseInt(movieRetrofit.getTotal());
-                List<Movie> movieInfoList = movieRetrofit.getSearchList();
-//                Log.d("TAG",String.valueOf(movieInfoList.size()));
-                for (int i=0; i<movieInfoList.size();i++){
-                    Movie info = movieInfoList.get(i);
-
-                    Movie movie = new Movie();
-                    movie.setTitle(info.getTitle());
-                    //от такі штуки тре в холдери робити
-                    movie.setYear("Year Released: " + info.getYear());
-                    movie.setMovieType("Type: " + info.getMovieType());
-                    movie.setPoster(info.getPoster());
-                    movie.setImdbId(info.getImdbId());
-                   // movieList.add(movie);
-                    adapter.addItem(movie);
-                    //чого в тебе в циклі це викликається?
-                    bar.setVisibility(View.GONE);
-                }
-                    //adapter.notifyItemInserted(movieList.size() -1);
-              //  adapter.notifyDataSetChanged();
-
-            }
-
-            @Override
-            public void onFailure(Call<MovieRetrofit> call, Throwable t) {
-
-            }
-        });
-        return null;
-    }
-
 
     public void getMovieRetrofit(String searchTerm){
 
@@ -218,28 +157,6 @@ public class MainActivity extends AppCompatActivity {
                 total = Integer.parseInt(movieRetrofit.getTotal());
                 List<Movie> movieInfoList = movieRetrofit.getSearchList();
                 adapter.addAll(movieInfoList);
-               // adapter.addAll(movieInfoList);
-//                Log.d("TAG",String.valueOf(movieInfoList.size()));
-//                for (int i=0; i<movieInfoList.size();i++){
-//                    Movie info = movieInfoList.get(i);
-////
-//                    Movie movie = new Movie();
-//                    movie.setTitle(info.getTitle());
-//                    movie.setYear("Year Released: " + info.getYear());
-//                    movie.setMovieType("Type: " + info.getMovieType());
-//                    movie.setPoster(info.getPoster());
-//                    movie.setImdbId(info.getImdbId());
-//                    adapter.addItem(movie);
-////                    //bar.setVisibility(View.GONE);
-//                }
-                /*for(int i=0;i<adapter.getItemCount();i++){
-                    Movie movie1 = adapter.movieList.get(i);
-                    String title = movie1.getTitle();
-                    Log.d("TAG", " title " + title);
-                }
-                */
-
-                adapter.notifyDataSetChanged();
 
                 Log.d("TAG", "Total " + total + " Size list " + adapter.getItemCount());
 
@@ -341,9 +258,7 @@ public class MainActivity extends AppCompatActivity {
                     prefs.setSearch(search);
 
                     adapter.clear();
-                    //movieList.clear();
                     getMovieRetrofit(search);
-                    //adapter.notifyDataSetChanged();
                 }
                 dialog.dismiss();
             }
