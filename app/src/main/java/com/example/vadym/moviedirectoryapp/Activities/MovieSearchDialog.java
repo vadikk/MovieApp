@@ -29,11 +29,6 @@ public class MovieSearchDialog extends AlertDialog implements View.OnClickListen
     }
 
     protected MovieSearchDialog(@NonNull Context context) {
-        // TODO: 1/28/18 В актівіті заімплементиш OnMovieSearchListener, створиш цей діалог, засетищ лістенер і всередині напишеш те, що тобі так боліло ->
-        // TODO: prefs.setSearch(search);
-        // TODO: adapter.clear();
-        // TODO: getMovieRetrofit(search);
-
         super(context);
 
         initViews();

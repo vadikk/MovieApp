@@ -4,6 +4,7 @@ import android.content.Context;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,14 +24,11 @@ public class MovieRecyclerViewAdapter extends RecyclerView.Adapter<MovieViewHold
 
     @Nullable
     private OnMovieClickListener movieClickListener;
-
-    //todo context тут нам не здався, як бачиш, його тре видалити
-    private Context context;
     @NonNull
     private List<Movie> movieList = new ArrayList<>();
 
-    public MovieRecyclerViewAdapter(Context context) {
-        this.context = context;
+    public MovieRecyclerViewAdapter() {
+
     }
 
     public void addAll(List<Movie> movies) {
@@ -68,9 +66,7 @@ public class MovieRecyclerViewAdapter extends RecyclerView.Adapter<MovieViewHold
     public MovieViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
 
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.moview_row, parent, false);
-        return new MovieViewHolder(view
-//                , context
-        );
+        return new MovieViewHolder(view);
     }
 
     @Override
@@ -79,30 +75,11 @@ public class MovieRecyclerViewAdapter extends RecyclerView.Adapter<MovieViewHold
         if (movie == null) {
             return;
         }
-
-
-        //todo  почитай ,як налаштувати лямбди в проекті - дуже зручна штука, тоді код буде виглядати так, а не як знизу
-//        itemView.setOnClickListener(v -> onMovieClick());
-        holder.itemView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                onMovieClick(holder.getAdapterPosition());
-            }
-        });
-
-
-//        String posterLink = movie.getPoster();
-
-//        holder.title.setText(movie.getTitle());
-//        holder.type.setText("Type: " + movie.getMovieType());
-//        holder.year.setText("Year Released: " + movie.getYear());
-//
-//        Picasso.with(context)
-//                .load(posterLink)
-//                .placeholder(android.R.drawable.ic_btn_speak_now)
-//                .into(holder.poster);
-
         holder.setMovie(movie);
+
+        holder.itemView.setOnClickListener((v)->{
+            Log.d("TAG","OK");
+            onMovieClick(holder.getAdapterPosition());});
     }
 
 

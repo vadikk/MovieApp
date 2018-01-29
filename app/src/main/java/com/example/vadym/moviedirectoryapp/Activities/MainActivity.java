@@ -17,23 +17,12 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.Volley;
-import com.example.vadym.moviedirectoryapp.Constant.Constants;
 import com.example.vadym.moviedirectoryapp.Constant.Prefs;
 import com.example.vadym.moviedirectoryapp.Data.MovieRecyclerViewAdapter;
 import com.example.vadym.moviedirectoryapp.Model.Movie;
 import com.example.vadym.moviedirectoryapp.Model.MovieApi;
 import com.example.vadym.moviedirectoryapp.Model.MovieRetrofit;
 import com.example.vadym.moviedirectoryapp.R;
-
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.util.List;
 
@@ -43,11 +32,10 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity
-        implements OnMovieClickListener {
+        implements OnMovieClickListener, MovieSearchDialog.OnMovieSearchListener {
 
     private RecyclerView recyclerView;
     private MovieRecyclerViewAdapter adapter;
-    private RequestQueue queue;
 
     private AlertDialog.Builder builder;
     private AlertDialog dialog;
@@ -55,6 +43,8 @@ public class MainActivity extends AppCompatActivity
     private int total;
     private ProgressBar bar;
     private boolean isLoading = false;
+    private int page = 1;
+    private Prefs prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,7 +53,6 @@ public class MainActivity extends AppCompatActivity
         final Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        queue = Volley.newRequestQueue(this);
         bar = (ProgressBar) findViewById(R.id.progressBar);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
@@ -80,14 +69,15 @@ public class MainActivity extends AppCompatActivity
         manager.setOrientation(LinearLayoutManager.VERTICAL);
         recyclerView.setLayoutManager(manager);
 
-        Prefs prefs = new Prefs(MainActivity.this);
+        prefs = new Prefs(MainActivity.this);
         final String search = prefs.getSearch();
-        getMovieRetrofit(search);
+        getMovieRetrofit(search,page);
+        Log.d("TAG","Search " + search);
 
-        adapter = new MovieRecyclerViewAdapter(this);
+        adapter = new MovieRecyclerViewAdapter();
+        adapter.setMovieClickListener(this);
 
         recyclerView.setAdapter(adapter);
-        //getMovieListWithVolley(search);
 
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -111,36 +101,45 @@ public class MainActivity extends AppCompatActivity
                 int loadShouldStartPosition = (int) ((double) allLoadedItemsCount * 0.75);
 
                 //тут ми маємо перевірити, чи в нас дійшло до потрібної позиції і чи ще є що підвантажувати
-                isLoading = loadShouldStartPosition >= lastVisibleItemPosition && allLoadedItemsCount < total;
+                //isLoading = loadShouldStartPosition >= lastVisibleItemPosition && allLoadedItemsCount < total;
+
+                //тре буде глянути, як тут обпрацювати кейс, коли в нас більше стало елементів, ніж могло буть.
+                if(loadShouldStartPosition<=lastVisibleItemPosition && allLoadedItemsCount<total) {
+                    page++;
+                    isLoading = true;
+                }
+
                 Log.d("TAG", "last " + lastVisibleItemPosition + " allLoadedItem " + allLoadedItemsCount
-                        + "loadshouldStart " + loadShouldStartPosition);
+                        + " loadshouldStart " + loadShouldStartPosition);
 
+                Log.d("TAG", "Boolean " + isLoading);
 
-                if (isLoading)
-                    loadMore(search);
+                if (isLoading) {
+                    loadMore(search,page);
+                }
 
             }
         });
-        Log.d("TAG", "boolean" + isLoading);
+
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-    }
 
-    private void loadMore(final String search) {
+    private void loadMore(final String search, int page) {
 
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-                //   bar.setVisibility(View.VISIBLE);
-                //loadNextPage(search);
+                if(isLoading) {
+                    isLoading = false;
+                    bar.setVisibility(View.VISIBLE);
+                    final String search = prefs.getSearch();
+                    getMovieRetrofit(search, page);
+                }
             }
         }, 3000);
     }
 
-    public void getMovieRetrofit(String searchTerm) {
+    public void getMovieRetrofit(String searchTerm, int page) {
 
         final Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("http://www.omdbapi.com/")
@@ -149,16 +148,23 @@ public class MainActivity extends AppCompatActivity
 
         MovieApi movieApi = retrofit.create(MovieApi.class);
 
-        Call<MovieRetrofit> search = movieApi.getMovie(searchTerm);
+        Call<MovieRetrofit> search = movieApi.getMovie(searchTerm, page);
         search.enqueue(new Callback<MovieRetrofit>() {
             @Override
             public void onResponse(Call<MovieRetrofit> call, retrofit2.Response<MovieRetrofit> response) {
-                Log.d("TAG", response.code() + "");
-                Log.d("TAG", String.valueOf(response.raw()));
+//                Log.d("TAG", response.code() + "");
+//                Log.d("TAG", String.valueOf(response.raw()));
                 MovieRetrofit movieRetrofit = response.body();
                 total = Integer.parseInt(movieRetrofit.getTotal());
                 List<Movie> movieInfoList = movieRetrofit.getSearchList();
                 adapter.addAll(movieInfoList);
+
+                bar.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        bar.setVisibility(View.GONE);
+                    }
+                }, 2000);
 
                 Log.d("TAG", "Total " + total + " Size list " + adapter.getItemCount());
 
@@ -179,51 +185,6 @@ public class MainActivity extends AppCompatActivity
         Intent intent = new Intent(this, MovieDetailActivity.class);
         intent.putExtra("movie", adapter.getMovie(position));
         startActivity(intent);
-    }
-
-    //Get movies with Volley
-    //todo видали неюзані функції і об'єкти
-    public void getMovieListWithVolley(String searchTerm) {
-        //movieList.clear();
-        //adapter.clear();
-
-        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, Constants.URL_LEFT + searchTerm + Constants.API_KEY, null,
-                new Response.Listener<JSONObject>() {
-                    @Override
-                    public void onResponse(JSONObject response) {
-
-                        try {
-                            JSONArray array = response.getJSONArray("Search");
-                            for (int i = 0; i < array.length(); i++) {
-                                JSONObject object = array.getJSONObject(i);
-
-                                Movie movie = new Movie();
-                                movie.setTitle(object.getString("Title"));
-                                movie.setYear("Year Released: " + object.getString("Year"));
-                                movie.setMovieType("Type: " + object.getString("Type"));
-                                movie.setPoster(object.getString("Poster"));
-                                movie.setImdbId(object.getString("imdbID"));
-
-                                //Log.d("Movies: ", movie.getTitle());
-                                //movieList.add(movie);
-                                adapter.addItem(movie);
-                            }
-
-                            //adapter.notifyDataSetChanged();
-
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
-
-                    }
-                }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-
-            }
-        });
-
-        queue.add(jsonObjectRequest);
     }
 
     @Override
@@ -249,33 +210,23 @@ public class MainActivity extends AppCompatActivity
         return super.onOptionsItemSelected(item);
     }
 
+
     public void showInputDialog() {
-        // TODO: 1/27/18 винеси це все діло в окремий клас
 
-
-        builder = new AlertDialog.Builder(this);
-        View view = getLayoutInflater().inflate(R.layout.dialog_view, null);
-
-        final EditText searchText = (EditText) view.findViewById(R.id.searchEdt);
-        Button submitBtn = (Button) view.findViewById(R.id.submitBtn);
-        builder.setView(view);
-        dialog = builder.create();
-        dialog.show();
-
-        submitBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Prefs prefs = new Prefs(MainActivity.this);
-                if (!searchText.getText().equals("")) {
-                    String search = searchText.getText().toString();
-                    prefs.setSearch(search);
-
-                    adapter.clear();
-                    getMovieRetrofit(search);
-                }
-                dialog.dismiss();
-            }
-        });
+        MovieSearchDialog searchDialog = new MovieSearchDialog(this);
+        searchDialog.setListener(this);
+        searchDialog.show();
     }
 
+
+    @Override
+    public void startSearch(String searchString) {
+
+        Prefs prefs = new Prefs(MainActivity.this);
+        prefs.setSearch(searchString);
+        adapter.clear();
+        page = 1;
+        getMovieRetrofit(searchString,page);
+
+    }
 }
